@@ -1,5 +1,8 @@
 <resources>
-    <string name="app_name">ChatApp</string>
+    <string name="app_name">Bluetooth Devices</string>
+    <string name="bluetooth_activity">Bluetooth</string>
+    <string name="enable_bluetooth">Enable Bluetooth</string>
+    <string name="add_user">Add User</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
     <string name="nav_header_title">Android Studio</string>
