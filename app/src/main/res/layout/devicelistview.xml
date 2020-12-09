@@ -2,14 +2,16 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#4D505C"
+    android:background="@android:color/white"
     android:orientation="vertical">
 
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/devices_layout_height"
+        android:background="@color/primary_dark"
+        android:fontFamily="@font/happy_monkey"
         android:gravity="center"
-        android:text="Paired Devices"
+        android:text="@string/paired_devices"
         android:textColor="#FFFFFF" />
 
     <ListView
@@ -22,10 +24,12 @@
 
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/devices_layout_height"
+        android:background="@color/primary_dark"
+        android:fontFamily="@font/happy_monkey"
         android:gravity="center"
         android:shadowColor="#FFFFFF"
-        android:text="Discovered Devices"
+        android:text="@string/discovered_devices"
         android:textColor="#FFFFFF" />
 
     <ListView
@@ -38,8 +42,9 @@
         android:id="@+id/cancelButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/purple_700"
-        android:text="Cancel"
+        android:background="@color/primary"
+        android:fontFamily="@font/happy_monkey"
+        android:text="@string/cancel"
         android:textColor="#ffffff" />
 
 
