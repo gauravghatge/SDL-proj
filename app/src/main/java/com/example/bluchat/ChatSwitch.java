@@ -14,21 +14,28 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 
-public class ChatSwitch {
-    private static final String APP_NAME = "Bluechat";
-    private static final UUID MY_UUID = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
 
+public class ChatSwitch {
+
+    // Constants
+    private static final String APP_NAME = "BlueChat";
+    private static final String CONNECTION_LOST = "Device connection was lost!";
+    private static final String CONNECTION_FAILED = "Unable to connect device!";
+    private static final UUID MY_UUID = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
+    static final int STATE_NONE = 0;
+    static final int STATE_LISTEN = 1;
+    static final int STATE_CONNECTING = 2;
+    static final int STATE_CONNECTED = 3;
+
+    // Member Variables
     private final BluetoothAdapter bluetoothAdapter;
     private final Handler handler;
     private AcceptThread acceptThread;
     private ConnectThread connectThread;
     private ReadWriteThread connectedThread;
     private int state;
-    static final int STATE_NONE = 0;
-    static final int STATE_LISTEN = 1;
-    static final int STATE_CONNECTING = 2;
-    static final int STATE_CONNECTED = 3;
 
+    // Methods
     public ChatSwitch(Context context, Handler handler) {
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         state = STATE_NONE;
@@ -38,7 +45,7 @@ public class ChatSwitch {
 
     private synchronized void setState(int state) {
         this.state = state;
-        handler.obtainMessage(MainActivity.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+        handler.obtainMessage(ChatActivity.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
     }
 
 
@@ -101,9 +108,9 @@ public class ChatSwitch {
 
         connectedThread = new ReadWriteThread(socket);
         connectedThread.start();
-        Message msg = handler.obtainMessage(MainActivity.MESSAGE_DEVICE_OBJECT);
+        Message msg = handler.obtainMessage(ChatActivity.MESSAGE_DEVICE_OBJECT);
         Bundle bundle = new Bundle();
-        bundle.putParcelable(MainActivity.DEVICE_OBJECT, device);
+        bundle.putParcelable(ChatActivity.DEVICE_OBJECT, device);
         msg.setData(bundle);
         handler.sendMessage(msg);
         setState(STATE_CONNECTED);
@@ -136,18 +143,18 @@ public class ChatSwitch {
     }
 
     private void connectionFailed() {
-        Message msg = handler.obtainMessage(MainActivity.MESSAGE_TOAST);
+        Message msg = handler.obtainMessage(ChatActivity.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString("toast", "Unable to connect device");
+        bundle.putString("toast", CONNECTION_FAILED);
         msg.setData(bundle);
         handler.sendMessage(msg);
         ChatSwitch.this.start();
     }
 
     private void connectionLost() {
-        Message msg = handler.obtainMessage(MainActivity.MESSAGE_TOAST);
+        Message msg = handler.obtainMessage(ChatActivity.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString("toast", "Device connection was lost");
+        bundle.putString("toast", CONNECTION_LOST);
         msg.setData(bundle);
         handler.sendMessage(msg);
         ChatSwitch.this.start();
@@ -280,7 +287,7 @@ public class ChatSwitch {
                 try {
 
                     bytes = inputStream.read(buffer);
-                    handler.obtainMessage(MainActivity.MESSAGE_READ, bytes, -1,
+                    handler.obtainMessage(ChatActivity.MESSAGE_READ, bytes, -1,
                             buffer).sendToTarget();
                 } catch (IOException e) {
                     connectionLost();
@@ -294,7 +301,7 @@ public class ChatSwitch {
         public void write(byte[] buffer) {
             try {
                 outputStream.write(buffer);
-                handler.obtainMessage(MainActivity.MESSAGE_WRITE, -1, -1,
+                handler.obtainMessage(ChatActivity.MESSAGE_WRITE, -1, -1,
                         buffer).sendToTarget();
             } catch (IOException e) {
             }

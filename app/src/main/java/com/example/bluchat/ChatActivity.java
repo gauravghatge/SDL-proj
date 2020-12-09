@@ -1,5 +1,6 @@
 package com.example.bluchat;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
@@ -11,81 +12,131 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.textfield.TextInputLayout;
+import com.daimajia.androidanimations.library.Techniques;
+import com.daimajia.androidanimations.library.YoYo;
 
 import java.util.ArrayList;
 import java.util.Set;
 
-public class MainActivity extends AppCompatActivity {
+public class ChatActivity extends AppCompatActivity {
 
-    private TextView status;
-    private Button btnConnect;
-    private ListView listView;
-    private Button btnSend;
-    private Dialog dialog;
-    private TextInputLayout inputLayout;
-    private ArrayAdapter<String> chatAdapter;
-    private ArrayList<String> chatMessages;
-    private BluetoothAdapter bluetoothAdapter;
+    // Constants
     public static final int MESSAGE_STATE_CHANGE = 1;
     public static final int MESSAGE_READ = 2;
     public static final int MESSAGE_WRITE = 3;
     public static final int MESSAGE_DEVICE_OBJECT = 4;
     public static final int MESSAGE_TOAST = 5;
     public static final String DEVICE_OBJECT = "device_name";
+    private static final String CONNECTING = "Connecting...";
+    private static final String CONNECTED_TO = "Connected to ";
+    private static final String NOT_CONNECTED = "Not connected!";
+    private static final String INPUT_TEXT_REQUEST = "Please enter some text!";
+    private static final String DIALOG_TITLE = "Bluetooth Devices";
+    private static final String NO_DEVICES_PAIRED = "No device have been paired!";
+    private static final String TURN_OFF = "Bluetooth still disabled, turn off application!";
+    private static final String CONNECTION_LOST = "Connection was lost!";
+    private static final String NO_DEVICE_FOUND = "No device found!";
+    private static final String BLUETOOTH_UNAVAILABLE = "Bluetooth is not available!";
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
+    private static final int ANIMATION_TIME = 1000;
+
+
+    // Member Variables
+    private String authorName = "Me";
+    private ImageView animation;
+    private YoYo.AnimationComposer fadeOut;
+    private YoYo.AnimationComposer bounce;
+    private TextView status;
+    private ListView chatList;
+    private ImageButton btnSend;
+    private Dialog dialog;
+    private EditText messageInput;
+    private ChatListAdapter chatAdapter;
+    private ArrayList<ChatMessage> chatMessages;
+    private BluetoothAdapter bluetoothAdapter;
+    private ChatMessage chatMessage;
     private ChatSwitch chatSwitch;
     private BluetoothDevice connectingDevice;
     private ArrayAdapter<String> discoveredDevicesAdapter;
 
+    // Methods
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.chat_activity_menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if(R.id.btn_connect == item.getItemId()) {
+            showPrinterPickDialog();
+            return true;
+        }
+        return false;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.mainactivity);
+        setContentView(R.layout.activity_chat);
 
+        // Customize ActionBar
+        getSupportActionBar().setDisplayShowCustomEnabled(true);
+        getSupportActionBar().setCustomView(R.layout.actionbarlayout);
+
+        // Cool Animations
+        fadeOut = YoYo.with(Techniques.FadeOut)
+                .duration(ANIMATION_TIME)
+                .repeat(YoYo.INFINITE);
+
+        bounce = YoYo.with(Techniques.Bounce)
+                .duration(ANIMATION_TIME)
+                .repeat(YoYo.INFINITE);
+
+        // Linking layout to java code
+        animation = findViewById(R.id.animationIV);
         status = (TextView) findViewById(R.id.status);
-        btnConnect = (Button) findViewById(R.id.btn_connect);
-        listView = (ListView) findViewById(R.id.list);
-        inputLayout = (TextInputLayout) findViewById(R.id.input_layout);
-        btnSend = (Button) findViewById(R.id.btn_send);
+        chatList = (ListView) findViewById(R.id.list);
+        messageInput = (EditText) findViewById(R.id.input_layout);
+        messageInput.setVisibility(View.INVISIBLE);
+        btnSend = (ImageButton) findViewById(R.id.btn_send);
+        btnSend.setVisibility(View.INVISIBLE);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         chatMessages = new ArrayList<>();
-        chatAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, chatMessages);
-        listView.setAdapter(chatAdapter);
 
         btnSend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (inputLayout.getEditText().getText().toString().equals("")) {
-                    Toast.makeText(MainActivity.this, "Please input some texts", Toast.LENGTH_SHORT).show();
+                if (messageInput.getText().toString().equals("")) {
+                    Toast.makeText(ChatActivity.this, INPUT_TEXT_REQUEST, Toast.LENGTH_SHORT).show();
                 } else {
-                    sendMessage(inputLayout.getEditText().getText().toString());
-                    inputLayout.getEditText().setText("");
+                    sendMessage(messageInput.getText().toString());
+                    messageInput.setText("");
                 }
             }
         });
 
         if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth is not available!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, BLUETOOTH_UNAVAILABLE, Toast.LENGTH_SHORT).show();
             finish();
         }
 
-        btnConnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showPrinterPickDialog();
-            }
-        });
     }
 
     private Handler handler = new Handler(new Handler.Callback() {
@@ -95,35 +146,46 @@ public class MainActivity extends AppCompatActivity {
                 case MESSAGE_STATE_CHANGE:
                     switch (msg.arg1) {
                         case ChatSwitch.STATE_CONNECTED:
-                            setStatus("Connected to: " + connectingDevice.getName());
-                            btnConnect.setEnabled(false);
+                            fadeOut.playOn(animation).stop();
+                            bounce.playOn(animation).stop();
+                            getSupportActionBar().hide();
+                            animation.setVisibility(View.INVISIBLE);
+                            status.setVisibility(View.INVISIBLE);
+                            messageInput.setVisibility(View.VISIBLE);
+                            btnSend.setVisibility(View.VISIBLE);
                             break;
                         case ChatSwitch.STATE_CONNECTING:
-                            setStatus("Connecting...");
-                            btnConnect.setEnabled(false);
+                            fadeOut.playOn(animation).stop();
+                            bounce.playOn(animation);
+                            setStatus(CONNECTING);
                             break;
                         case ChatSwitch.STATE_LISTEN:
                         case ChatSwitch.STATE_NONE:
-                            setStatus("Not connected");
+                            bounce.playOn(animation).stop();
+                            fadeOut.playOn(animation);
+                            setStatus(NOT_CONNECTED);
                             break;
                     }
                     break;
                 case MESSAGE_WRITE:
                     byte[] writeBuf = (byte[]) msg.obj;
                     String writeMessage = new String(writeBuf);
-                    chatMessages.add("Me: " + writeMessage);
+                    authorName = "Me";
+                    chatMessage = new ChatMessage(authorName, writeMessage);
+                    chatMessages.add(chatMessage);
                     chatAdapter.notifyDataSetChanged();
                     break;
                 case MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
-
                     String readMessage = new String(readBuf, 0, msg.arg1);
-                    chatMessages.add(connectingDevice.getName() + ":  " + readMessage);
+                    authorName = connectingDevice.getName();
+                    chatMessage = new ChatMessage(authorName, readMessage);
+                    chatMessages.add(chatMessage);
                     chatAdapter.notifyDataSetChanged();
                     break;
                 case MESSAGE_DEVICE_OBJECT:
                     connectingDevice = msg.getData().getParcelable(DEVICE_OBJECT);
-                    Toast.makeText(getApplicationContext(), "Connected to " + connectingDevice.getName(),
+                    Toast.makeText(getApplicationContext(), CONNECTED_TO + connectingDevice.getName(),
                             Toast.LENGTH_SHORT).show();
                     break;
                 case MESSAGE_TOAST:
@@ -138,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
     private void showPrinterPickDialog() {
         dialog = new Dialog(this);
         dialog.setContentView(R.layout.devicelistview);
-        dialog.setTitle("Bluetooth Devices");
+        dialog.setTitle(DIALOG_TITLE);
 
         if (bluetoothAdapter.isDiscovering()) {
             bluetoothAdapter.cancelDiscovery();
@@ -168,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
                 pairedDevicesAdapter.add(device.getName() + "\n" + device.getAddress());
             }
         } else {
-            pairedDevicesAdapter.add("No device have been paired");
+            pairedDevicesAdapter.add(NO_DEVICES_PAIRED);
         }
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -225,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
                 if (resultCode == Activity.RESULT_OK) {
                     chatSwitch = new ChatSwitch(this, handler);
                 } else {
-                    Toast.makeText(this, "Bluetooth still disabled, turn off application!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, TURN_OFF, Toast.LENGTH_SHORT).show();
                     finish();
                 }
         }
@@ -233,7 +295,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void sendMessage(String message) {
         if (chatSwitch.getState() != ChatSwitch.STATE_CONNECTED) {
-            Toast.makeText(this, "Connection was lost!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, CONNECTION_LOST, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -250,6 +312,8 @@ public class MainActivity extends AppCompatActivity {
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BLUETOOTH);
         } else {
+            chatAdapter = new ChatListAdapter(this, authorName, chatMessages);
+            chatList.setAdapter(chatAdapter);
             chatSwitch = new ChatSwitch(this, handler);
         }
     }
@@ -284,7 +348,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 if (discoveredDevicesAdapter.getCount() == 0) {
-                    discoveredDevicesAdapter.add("No device found");
+                    discoveredDevicesAdapter.add(NO_DEVICE_FOUND);
                 }
             }
         }
